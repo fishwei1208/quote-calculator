@@ -225,11 +225,6 @@ function checkPW(){
             </div>
             <div id="tierArea"></div>
             <div class="hint" id="qtyHint"></div>
-            <div class="f" style="margin-top:8px">
-              <label>其他成本（元／件）</label>
-              <input type="number" id="sExtraCost" placeholder="0" min="0" step="0.5" oninput="render()" style="width:100px">
-              <span style="font-size:11px;color:var(--mu);margin-left:6px">可自填額外單件成本</span>
-            </div>
           </div>
         </div>
 
@@ -1347,12 +1342,11 @@ function render(){
   var pk = calcPkg(shirt.qty);
   var sh = calcShipping(shirt.qty);
   var ppShirt = shirt.avg;
-  var ppExtra = nv('sExtraCost') || 0;
   var ppPrint = pr ? pr.pp : 0;
   var ppLbl   = lb.pp;
   var ppPkg   = pk.pp;
   var ppSh    = sh.pp;
-  var ppTot   = ppShirt + ppExtra + ppPrint + ppLbl + ppPkg + ppSh;
+  var ppTot   = ppShirt + ppPrint + ppLbl + ppPkg + ppSh;
 
   var profitPP = null;
   if(pMode==='price'){ var dp=nv('directPrice'); if(dp>0) profitPP=dp-ppTot; }
@@ -1403,7 +1397,6 @@ function render(){
   h += '<div class="detail-wrap">';
   h += '<div class="pc-grid">';
   h += '<div class="pc"><div class="pcl">衣服/件</div><div class="pcv">NTD '+fi(ppShirt)+'</div></div>';
-  if(ppExtra>0) h += '<div class="pc"><div class="pcl">其他/件</div><div class="pcv">NTD '+fi(ppExtra)+'</div></div>';
   h += '<div class="pc"><div class="pcl">加工/件</div><div class="pcv">'+(pr ? 'NTD '+fi(ppPrint) : '—')+'</div></div>';
   h += '<div class="pc"><div class="pcl">標籤/件</div><div class="pcv">NTD '+fi(ppLbl)+'</div></div>';
   h += '<div class="pc"><div class="pcl">包裝/件</div><div class="pcv">NTD '+fi(ppPkg)+'</div></div>';
@@ -1416,12 +1409,6 @@ function render(){
   h += '<div class="drs">衣服</div>';
   shirt.bd.forEach(function(r){ h += '<div class="dr"><span>'+r.lbl+'</span><span>NTD '+fmtN(r.cost)+'</span></div>'; });
   h += '<div class="dr tot"><span>衣服小計</span><span>NTD '+fmtN(shirt.total)+'</span></div>';
-
-  if(ppExtra>0){
-    h += '<div class="drs">其他成本</div>';
-    h += '<div class="dr"><span>其他 '+fi(ppExtra)+'元/件 × '+shirt.qty+'件</span><span>NTD '+fmtN(ppExtra*shirt.qty)+'</span></div>';
-    h += '<div class="dr tot"><span>其他小計</span><span>NTD '+fmtN(ppExtra*shirt.qty)+'</span></div>';
-  }
 
   if(pr && pr.bd.length){
     h += '<div class="drs">加工</div>';
@@ -1616,8 +1603,7 @@ function useAsQuote(){
   var pr = calcPrint(shirt.qty);
   var lb = calcLabel(shirt.qty);
   var pk = calcPkg(shirt.qty);
-  var ppExtra2 = nv('sExtraCost') || 0;
-  var ppTot = shirt.avg + ppExtra2 + (pr?pr.pp:0) + lb.pp + pk.pp;
+  var ppTot = shirt.avg + (pr?pr.pp:0) + lb.pp + pk.pp;
   var profitPP = null;
   if(pMode==='price'){ var dp=nv('directPrice'); if(dp>0) profitPP=dp-ppTot; }
   else if(pMode==='fixed'){ var pp=nv('profitAmtPP'); if(pp>0) profitPP=pp; else { var tot=nv('profitAmt'); if(tot>0) profitPP=tot/shirt.qty; } }
