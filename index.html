@@ -205,6 +205,7 @@ function checkPW(){
                 <option value="gildan">Gildan 76000 短T（白60/色70元）</option>
                 <option value="crossrunner">Crossrunner 3900 排汗衫（52元起）</option>
                 <option value="ua">UA35001（107元起）</option>
+                <option value="other">其他（自填成本）</option>
               </select>
             </div>
             <div class="f" id="colorRow" style="display:none">
@@ -213,6 +214,10 @@ function checkPW(){
                 <div class="tgb" id="bWhite" onclick="setColor('white')">白T</div>
                 <div class="tgb" id="bColor" onclick="setColor('color')">色T</div>
               </div>
+            </div>
+            <div class="f" id="customCostRow" style="display:none">
+              <label>衣服成本（元／件）</label>
+              <input type="number" id="sCustomCost" placeholder="請輸入每件成本" min="0" step="0.5" oninput="render()" style="width:130px">
             </div>
             <div class="f">
               <label>S ～ XL 數量</label>
@@ -1017,7 +1022,8 @@ var BRANDS = {
   printstar:   {name:'Printstar 00085-CVT',      hasColor:true,  baseW:84,  baseC:93,
                 tiers:[{lbl:'2L',sur:20},{lbl:'3L 以上',sur:40}]},
   ua:          {name:'UA35001',                  hasColor:false, base:107,
-                tiers:[{lbl:'2L',sur:30},{lbl:'3L 以上',sur:50}]}
+                tiers:[{lbl:'2L',sur:30},{lbl:'3L 以上',sur:50}]},
+  other:       {name:'其他',                     hasColor:false, base:0, isCustom:true, tiers:[]}
 };
 var SC_TBL = {
   polo:  {sm:[12,5,5], lg:[25,10,10]},
@@ -1062,6 +1068,7 @@ function onBrandChange(){
   g('bColor').classList.remove('on');
   var b = BRANDS[sv('sBrand')];
   g('colorRow').style.display = (b && b.hasColor) ? '' : 'none';
+  g('customCostRow').style.display = (b && b.isCustom) ? '' : 'none';
   var ta = g('tierArea');
   ta.innerHTML = '';
   if(b){
@@ -1168,7 +1175,10 @@ function calcShirt(){
   var b = BRANDS[key];
   if(!b) return null;
   var baseP;
-  if(b.hasColor){
+  if(b.isCustom){
+    baseP = nv('sCustomCost') || 0;
+    if(baseP <= 0) return null;
+  } else if(b.hasColor){
     if(shirtColor==='white') baseP = b.baseW;
     else if(shirtColor==='color') baseP = b.baseC;
     else return null;
@@ -1319,7 +1329,9 @@ function render(){
   var shirt = calcShirt();
   if(!shirt){
     var b = BRANDS[sv('sBrand')];
-    if(b && b.hasColor && !shirtColor)
+    if(b && b.isCustom && !(nv('sCustomCost')>0))
+      rb.innerHTML = '<div class="nom">請輸入每件衣服成本，再輸入數量</div>';
+    else if(b && b.hasColor && !shirtColor)
       rb.innerHTML = '<div class="nom">請選擇白T 或 色T，再輸入數量</div>';
     else
       rb.innerHTML = '<div class="nom">請選擇品牌並輸入數量</div>';
