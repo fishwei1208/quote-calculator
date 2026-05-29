@@ -220,6 +220,11 @@ function checkPW(){
             </div>
             <div id="tierArea"></div>
             <div class="hint" id="qtyHint"></div>
+            <div class="f" style="margin-top:8px">
+              <label>其他成本（元／件）</label>
+              <input type="number" id="sExtraCost" placeholder="0" min="0" step="0.5" oninput="render()" style="width:100px">
+              <span style="font-size:11px;color:var(--mu);margin-left:6px">可自填額外單件成本</span>
+            </div>
           </div>
         </div>
 
@@ -1330,11 +1335,12 @@ function render(){
   var pk = calcPkg(shirt.qty);
   var sh = calcShipping(shirt.qty);
   var ppShirt = shirt.avg;
+  var ppExtra = nv('sExtraCost') || 0;
   var ppPrint = pr ? pr.pp : 0;
   var ppLbl   = lb.pp;
   var ppPkg   = pk.pp;
   var ppSh    = sh.pp;
-  var ppTot   = ppShirt + ppPrint + ppLbl + ppPkg + ppSh;
+  var ppTot   = ppShirt + ppExtra + ppPrint + ppLbl + ppPkg + ppSh;
 
   var profitPP = null;
   if(pMode==='price'){ var dp=nv('directPrice'); if(dp>0) profitPP=dp-ppTot; }
@@ -1385,6 +1391,7 @@ function render(){
   h += '<div class="detail-wrap">';
   h += '<div class="pc-grid">';
   h += '<div class="pc"><div class="pcl">衣服/件</div><div class="pcv">NTD '+fi(ppShirt)+'</div></div>';
+  if(ppExtra>0) h += '<div class="pc"><div class="pcl">其他/件</div><div class="pcv">NTD '+fi(ppExtra)+'</div></div>';
   h += '<div class="pc"><div class="pcl">加工/件</div><div class="pcv">'+(pr ? 'NTD '+fi(ppPrint) : '—')+'</div></div>';
   h += '<div class="pc"><div class="pcl">標籤/件</div><div class="pcv">NTD '+fi(ppLbl)+'</div></div>';
   h += '<div class="pc"><div class="pcl">包裝/件</div><div class="pcv">NTD '+fi(ppPkg)+'</div></div>';
@@ -1397,6 +1404,12 @@ function render(){
   h += '<div class="drs">衣服</div>';
   shirt.bd.forEach(function(r){ h += '<div class="dr"><span>'+r.lbl+'</span><span>NTD '+fmtN(r.cost)+'</span></div>'; });
   h += '<div class="dr tot"><span>衣服小計</span><span>NTD '+fmtN(shirt.total)+'</span></div>';
+
+  if(ppExtra>0){
+    h += '<div class="drs">其他成本</div>';
+    h += '<div class="dr"><span>其他 '+fi(ppExtra)+'元/件 × '+shirt.qty+'件</span><span>NTD '+fmtN(ppExtra*shirt.qty)+'</span></div>';
+    h += '<div class="dr tot"><span>其他小計</span><span>NTD '+fmtN(ppExtra*shirt.qty)+'</span></div>';
+  }
 
   if(pr && pr.bd.length){
     h += '<div class="drs">加工</div>';
@@ -1497,8 +1510,8 @@ function setQT(t){
   renderTot();
 }
 
-function addRow(desc, spec, price, qty){
-  rows.push({id:++rowId, desc:desc||'', spec:spec||'', price:parseFloat(price)||0, qty:parseFloat(qty)||0});
+function addRow(desc, spec, price, qty, cost){
+  rows.push({id:++rowId, desc:desc||'', spec:spec||'', price:parseFloat(price)||0, qty:parseFloat(qty)||0, cost:cost!=null?parseFloat(cost)||null:null});
   renderRows();
 }
 
@@ -1591,7 +1604,8 @@ function useAsQuote(){
   var pr = calcPrint(shirt.qty);
   var lb = calcLabel(shirt.qty);
   var pk = calcPkg(shirt.qty);
-  var ppTot = shirt.avg + (pr?pr.pp:0) + lb.pp + pk.pp;
+  var ppExtra2 = nv('sExtraCost') || 0;
+  var ppTot = shirt.avg + ppExtra2 + (pr?pr.pp:0) + lb.pp + pk.pp;
   var profitPP = null;
   if(pMode==='price'){ var dp=nv('directPrice'); if(dp>0) profitPP=dp-ppTot; }
   else if(pMode==='fixed'){ var pp=nv('profitAmtPP'); if(pp>0) profitPP=pp; else { var tot=nv('profitAmt'); if(tot>0) profitPP=tot/shirt.qty; } }
@@ -1600,7 +1614,7 @@ function useAsQuote(){
   var brandName = BRANDS[sv('sBrand')] ? BRANDS[sv('sBrand')].name : '客製化T恤';
   var colorStr = shirtColor==='white' ? ' 白T' : shirtColor==='color' ? ' 色T' : '';
   var shUse = calcShipping(shirt.qty);
-  rows.push({id:++rowId, desc:brandName+colorStr, spec:'客製化印刷', price:rec, qty:shirt.qty});
+  rows.push({id:++rowId, desc:brandName+colorStr, spec:'客製化印刷', price:rec, qty:shirt.qty, cost:fi(ppTot)});
   if(shUse.tot>0) rows.push({id:++rowId, desc:'運費', spec:sv('shippingCo'), price:shUse.tot, qty:1});
   renderRows();
   autoFillDates();
@@ -1873,7 +1887,7 @@ function useOtherAsQuote(){
   }
 
   if(!name || qty<=0 || recPP<=0){ alert('請填入有效的產品名稱、數量與售價'); return; }
-  addRow(name, spec||'客製商品', recPP, qty);
+  addRow(name, spec||'客製商品', recPP, qty, totalCostPP);
   swTab('quote');
 }
 
@@ -2000,7 +2014,7 @@ function useTowelAsQuote(){
   }
   var rec = (twPMode==='price' && parseFloat((g('twDirectPrice')||{}).value)>0) ? parseFloat(g('twDirectPrice').value) : (profitPP!==null ? Math.ceil((ppTot+profitPP)/5)*5 : Math.ceil(ppTot/5)*5);
   var colorLbl = twColor==='white' ? ' 白色' : ' 彩色';
-  addRow(brand.name+colorLbl, '客製毛巾', rec, qty);
+  addRow(brand.name+colorLbl, '客製毛巾', rec, qty, fi(ppTot));
   if(shTot>0) addRow('運費', shCo, shTot, 1);
   autoFillDates();
   swTab('quote');
@@ -2080,8 +2094,12 @@ function saveQuoteHistory(){
     address:  sv('qAdr')||'',
     channel:  (sv('qChType') ? sv('qChType')+': ' : '')+sv('qChVal'),
     type:     qType,
-    items:    rows.map(function(r){ return {desc:r.desc,spec:r.spec,price:r.price,qty:r.qty}; }),
-    subtotal: rows.reduce(function(s,r){ return s+Math.round((r.price||0)*(r.qty||0)); },0)
+    items:    rows.map(function(r){ return {desc:r.desc,spec:r.spec,price:r.price,qty:r.qty,cost:r.cost||null}; }),
+    subtotal: rows.reduce(function(s,r){ return s+Math.round((r.price||0)*(r.qty||0)); },0),
+    profit:   (function(){ var p=rows.reduce(function(s,r){ return (r.cost!=null)?s+Math.round(((r.price||0)-(r.cost||0))*(r.qty||0)):s; },0); return p||null; })(),
+    status:   'pending',
+    deposit:  '',
+    payDate:  ''
   };
   try{
     var hist = JSON.parse(localStorage.getItem('mw_hist')||'[]');
@@ -2104,12 +2122,54 @@ function renderHistory(){
   el.innerHTML = hist.map(function(r){
     var items2 = (r.items||[]).slice(0,2).map(function(i){return i.desc;}).join('、');
     if((r.items||[]).length>2) items2+=' 等'+r.items.length+'項';
-    return '<div class="hist-item">'+
+    var statusMap = {pending:'⏳ 未成交', done:'✅ 已成交', lost:'❌ 取消'};
+    var statusLabel = statusMap[r.status||'pending'] || statusMap.pending;
+    var statusColor = {pending:'#92400e', done:'#065f46', lost:'#991b1b'}[r.status||'pending'];
+    var statusBg    = {pending:'#fef3c7', done:'#d1fae5', lost:'#fee2e2'}[r.status||'pending'];
+    var profitHtml = (r.profit != null) ? '<span style="font-size:11px;color:#059669;margin-left:6px">利潤 NTD '+fmtN(r.profit)+'</span>' : '';
+    var noteHtml = '';
+    if((r.status||'pending')==='done'){
+      noteHtml += '<div style="font-size:11px;color:var(--mu);margin-top:3px">';
+      if(r.deposit) noteHtml += '訂金：'+eh(r.deposit)+'　';
+      if(r.payDate) noteHtml += '預計付款：'+eh(r.payDate);
+      noteHtml += '</div>';
+    }
+    return '<div class="hist-item" data-id="'+r.id+'">'+
       '<div class="hist-main"><span class="hist-name">'+eh(r.customer)+'</span><span class="hist-date">'+eh(r.date)+'</span></div>'+
       '<div class="hist-items">'+eh(items2)+'</div>'+
+      '<div style="margin:4px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
+        '<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;background:'+statusBg+';color:'+statusColor+'">'+statusLabel+'</span>'+
+        profitHtml+
+        noteHtml+
+      '</div>'+
+      '<div class="hist-note-form" id="nf_'+r.id+'" style="display:none;background:var(--bgm);border:1px solid var(--bdm);border-radius:6px;padding:8px;margin-top:6px;font-size:12px">'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'+
+          '<label style="font-weight:600">交易狀態：</label>'+
+          '<select class="nf-status" data-id="'+r.id+'" style="padding:3px 6px;border:1px solid var(--bdm);border-radius:5px;background:var(--bg);color:var(--tx);font-size:12px">'+
+            '<option value="pending"'+(r.status==='pending'?' selected':'')+'>⏳ 未成交</option>'+
+            '<option value="done"'+(r.status==='done'?' selected':'')+'>✅ 已成交</option>'+
+            '<option value="lost"'+(r.status==='lost'?' selected':'')+'>❌ 取消</option>'+
+          '</select>'+
+        '</div>'+
+        '<div class="nf-done-fields" style="'+(r.status==='done'?'':'display:none')+'">'+
+          '<div style="display:flex;gap:8px;align-items:center;margin-bottom:5px;flex-wrap:wrap">'+
+            '<label>訂金說明：</label>'+
+            '<input class="nf-deposit" data-id="'+r.id+'" value="'+eh(r.deposit||'')+'" placeholder="如：已付 5000 元" style="flex:1;min-width:120px;padding:3px 6px;border:1px solid var(--bdm);border-radius:5px;background:var(--bg);color:var(--tx);font-size:12px">'+
+          '</div>'+
+          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+            '<label>預計付款日：</label>'+
+            '<input class="nf-paydate" type="date" data-id="'+r.id+'" value="'+eh(r.payDate||'')+'" style="padding:3px 6px;border:1px solid var(--bdm);border-radius:5px;background:var(--bg);color:var(--tx);font-size:12px">'+
+          '</div>'+
+        '</div>'+
+        '<div style="margin-top:8px;display:flex;gap:6px">'+
+          '<button class="nf-save" data-id="'+r.id+'" style="padding:4px 12px;font-size:12px;background:var(--ac);color:#fff;border:none;border-radius:5px;cursor:pointer">儲存</button>'+
+          '<button class="nf-cancel" data-id="'+r.id+'" style="padding:4px 10px;font-size:12px;background:var(--bgm);border:1px solid var(--bdm);border-radius:5px;cursor:pointer">取消</button>'+
+        '</div>'+
+      '</div>'+
       '<div class="hist-foot">'+
         '<span class="hist-total">NTD '+fmtN(r.subtotal)+'</span>'+
         '<span class="'+(r.type==='rc'?'badge-rc':'badge-iv')+'">'+(r.type==='rc'?'收據版':'發票版')+'</span>'+
+        '<button class="hist-note-btn" data-id="'+r.id+'" style="padding:3px 8px;font-size:12px;background:var(--bgm);border:1px solid var(--bdm);border-radius:5px;cursor:pointer">📝 備注</button>'+
         '<button class="hist-load" data-id="'+r.id+'">載入</button>'+
         '<button class="hist-del"  data-id="'+r.id+'">刪除</button>'+
       '</div>'+
@@ -2121,6 +2181,29 @@ function renderHistory(){
   });
   el.querySelectorAll('.hist-del').forEach(function(btn){
     btn.addEventListener('click', function(){ deleteHistory(parseInt(this.dataset.id)); });
+  });
+  el.querySelectorAll('.hist-note-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = this.dataset.id;
+      var nf = g('nf_'+id); if(!nf) return;
+      nf.style.display = nf.style.display==='none' ? '' : 'none';
+    });
+  });
+  el.querySelectorAll('.nf-status').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      var id = this.dataset.id;
+      var nf = g('nf_'+id); if(!nf) return;
+      var doneFields = nf.querySelector('.nf-done-fields');
+      if(doneFields) doneFields.style.display = this.value==='done' ? '' : 'none';
+    });
+  });
+  el.querySelectorAll('.nf-save').forEach(function(btn){
+    btn.addEventListener('click', function(){ saveHistNote(parseInt(this.dataset.id)); });
+  });
+  el.querySelectorAll('.nf-cancel').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var nf = g('nf_'+this.dataset.id); if(nf) nf.style.display='none';
+    });
   });
 }
 
@@ -2153,6 +2236,26 @@ function deleteHistory(id){
   try{ hist=JSON.parse(localStorage.getItem('mw_hist')||'[]'); }catch(e){}
   hist=hist.filter(function(r){ return r.id!==id; });
   try{ localStorage.setItem('mw_hist',JSON.stringify(hist)); }catch(e){}
+  renderHistory();
+}
+
+function saveHistNote(id){
+  var nf = g('nf_'+id); if(!nf) return;
+  var statusEl  = nf.querySelector('.nf-status');
+  var depositEl = nf.querySelector('.nf-deposit');
+  var payEl     = nf.querySelector('.nf-paydate');
+  var newStatus  = statusEl  ? statusEl.value  : 'pending';
+  var newDeposit = depositEl ? depositEl.value : '';
+  var newPay     = payEl     ? payEl.value     : '';
+  var hist=[];
+  try{ hist=JSON.parse(localStorage.getItem('mw_hist')||'[]'); }catch(e){}
+  var rec = hist.find(function(r){ return r.id===id; });
+  if(rec){
+    rec.status  = newStatus;
+    rec.deposit = newDeposit;
+    rec.payDate = newPay;
+    try{ localStorage.setItem('mw_hist',JSON.stringify(hist)); }catch(e){}
+  }
   renderHistory();
 }
 
